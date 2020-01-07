@@ -1,6 +1,6 @@
 Package: ShiftShareSE
 Title: Inference in Regressions with Shift-Share Structure
-Version: 1.0.0
+Version: 1.0.1
 Authors@R: c(person(given = "Michal",
                   family = "Kolesár",
                   role = c("aut", "cre"),
@@ -25,16 +25,16 @@ Encoding: UTF-8
 LazyData: true
 Suggests: testthat (>= 2.1.0), knitr, rmarkdown, AER, spelling, formatR
 Imports: Formula
-RoxygenNote: 6.1.1
+RoxygenNote: 7.0.2
 URL: https://github.com/kolesarm/ShiftShareSE
 Language: en-US
 BugReports: https://github.com/kolesarm/ShiftShareSE/issues
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2019-08-24 14:05:09 UTC; kolesarm
+Packaged: 2020-01-07 13:41:58 UTC; kolesarm
 Author: Michal Kolesár [aut, cre] (<https://orcid.org/0000-0002-2482-7796>),
   Eduardo Morales [ctb],
   Rodrigo Adão [ctb]
 Maintainer: Michal Kolesár <kolesarmi@googlemail.com>
 Repository: CRAN
-Date/Publication: 2019-08-24 15:00:02 UTC
+Date/Publication: 2020-01-07 22:50:02 UTC

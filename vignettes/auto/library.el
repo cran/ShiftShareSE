@@ -1,5 +1,5 @@
 (TeX-add-style-hook
- "bartik_library"
+ "library"
  (lambda ()
    (LaTeX-add-bibitems
     "adh13"

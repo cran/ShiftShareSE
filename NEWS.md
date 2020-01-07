@@ -1,3 +1,11 @@
+# ShiftShareSE 1.0.1
+
+## Minor improvements and fixes
+
+- Fix a broken check on R-devel due to new implementation of round() in R4.0.0
+- Add section on collinear sectors in vignette, and make clarifications in
+  documentation
+
 # ShiftShareSE 1.0.0
 
 ## New Features

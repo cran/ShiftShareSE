@@ -8,7 +8,6 @@
 #' @template shocks
 #' @template method
 #' @template value
-#' @inheritParams ivreg_ss.fit
 #' @references{
 #'
 #' \cite{Bartik, Timothy J., Who Benefits from State and Local Economic
@@ -17,7 +16,7 @@
 #'
 #' \cite{Adão, Rodrigo, Kolesár, Michal, and Morales, Eduardo,
 #' "Shift-Share Designs: Theory and Inference", Quarterly Journal of Economics
-#' 2019, forthcoming. doi:10.1093/qje/qjz025}
+#' 2019, 134 (4), 1949-2010.}
 #'
 #' }
 #' @examples
@@ -70,9 +69,12 @@ ivreg_ss <- function(formula, X, data, W, subset, weights, method, beta0=0,
 #' Basic computing engine to calculate confidence intervals and p-values in an
 #' instrumental variables regression with a shift-share instrument, using
 #' different inference methods, as specified by \code{method}.
-#' @param y1 Outcome variable, vector of length \code{N}
-#' @param y2 Endogenous variable, vector of length \code{N}
-#' @param Z Matrix of regional controls, matrix with \code{N} rows
+#' @param y1 Outcome variable. A vector of length \code{N}, with each row
+#'     corresponding to a region.
+#' @param y2 Endogenous variable, vector of length \code{N}, with each row
+#'     corresponding to a region.
+#' @param Z Matrix of regional controls, matrix with \code{N} rows corresponding
+#'     to regions.
 #' @template shocks
 #' @template method
 #' @template value
@@ -86,8 +88,23 @@ ivreg_ss.fit <- function(y1, y2, X, W, Z, w=NULL, method=c("akm", "akm0"),
 
     mm <- cbind(X, Z)
 
-    r1 <- if (is.null(w)) stats::lm.fit(mm, y1) else stats::lm.wfit(mm, y1, w)
-    r2 <- if (is.null(w)) stats::lm.fit(mm, y2) else stats::lm.wfit(mm, y2, w)
+    if (is.null(w)) {
+        ddX <- stats::lm.fit(y=X, x=Z)$residuals # \ddot{X}
+        ddY1 <- stats::lm.fit(y=y1, x=Z)$residuals # \ddot{Y}_{1}
+        ddY2 <- stats::lm.fit(y=y2, x=Z)$residuals # \ddot{Y}_{2}
+        hX <- stats::lm.fit(y=ddX, x=W)$coefficients #  \hat{\Xs}
+        wgt <- 1
+        r1 <- stats::lm.fit(mm, y1)
+        r2 <- stats::lm.fit(mm, y2)
+    } else {
+        ddX <- stats::lm.wfit(y=X, x=Z, w=w)$residuals
+        ddY1 <- stats::lm.wfit(y=y1, x=Z, w=w)$residuals
+        ddY2 <- stats::lm.wfit(y=y2, x=Z, w=w)$residuals
+        hX <- stats::lm.wfit(y=ddX, x=W, w=w)$coefficients
+        wgt <- w
+        r1 <- stats::lm.wfit(mm, y1, w)
+        r2 <- stats::lm.wfit(mm, y2, w)
+    }
 
     betahat <- unname(r1$coefficients[1]/r2$coefficients[1])
     resid <- r1$residuals-r2$residuals*betahat
@@ -97,20 +114,6 @@ ivreg_ss.fit <- function(y1, y2, X, W, Z, w=NULL, method=c("akm", "akm0"),
     if (qr(W)$rank < ncol(W))
         stop("Share matrix is collinear")
 
-
-    if (is.null(w)) {
-        ddX <- stats::lm.fit(y=X, x=Z)$residuals # \ddot{X}
-        ddY1 <- stats::lm.fit(y=y1, x=Z)$residuals # \ddot{Y}_{1}
-        ddY2 <- stats::lm.fit(y=y2, x=Z)$residuals # \ddot{Y}_{2}
-        hX <- stats::lm.fit(y=ddX, x=W)$coefficients #  \hat{\Xs}
-    } else {
-        ddX <- stats::lm.wfit(y=X, x=Z, w=w)$residuals
-        ddY1 <- stats::lm.wfit(y=y1, x=Z, w=w)$residuals
-        ddY2 <- stats::lm.wfit(y=y2, x=Z, w=w)$residuals
-        hX <- stats::lm.wfit(y=ddX, x=W, w=w)$coefficients
-    }
-
-    wgt <- if (!is.null(w)) w else 1
     RX <- sum(wgt * ddY2*ddX)
 
     if("all" %in% method)
@@ -140,6 +143,9 @@ ivreg_ss.fit <- function(y1, y2, X, W, Z, w=NULL, method=c("akm", "akm0"),
         cR0 <- hX*drop(crossprod(wgt * (ddY1-ddY2*beta0), W))
         cW <- hX*drop(crossprod(wgt * ddY2, W))
         if (!is.null(sector_cvar)) {
+            if (length(sector_cvar) != length(cR))
+                stop("The length of \"sector_cvar\" is different",
+                        "from the number of sectors.")
             cR <- tapply(cR, factor(sector_cvar), sum)
             cR0 <- tapply(cR0, factor(sector_cvar), sum)
             cW <- tapply(cW, factor(sector_cvar), sum)
@@ -149,11 +155,11 @@ ivreg_ss.fit <- function(y1, y2, X, W, Z, w=NULL, method=c("akm", "akm0"),
     if ("akm" %in% method)
         se.akm <- sqrt(sum(cR^2) / RX^2)
 
-    cil.akm0 <- cir.akm0 <- NA
+    se0.akm0 <- cil.akm0 <- cir.akm0 <- NA
     cv <- stats::qnorm(1-alpha/2)
 
     if ("akm0" %in% method) {
-        se.akm0 <- sqrt(sum(cR0^2) / RX^2)
+        se0.akm0 <- sqrt(sum(cR0^2) / RX^2)
 
         ## Now build CI
         Q <- RX^2/cv^2 - sum(cW^2)
@@ -164,24 +170,23 @@ ivreg_ss.fit <- function(y1, y2, X, W, Z, w=NULL, method=c("akm", "akm0"),
         if (Q>0) {
             cir.akm0 <- mid + sqrt(dis)
             cil.akm0 <- mid - sqrt(dis)
+            se.akm0 <- sqrt(dis)/cv
         } else if (dis >0)  {
             cir.akm0 <- mid - sqrt(dis)
             cil.akm0 <- mid + sqrt(dis)
+            se.akm0 <- Inf
         } else  {
             cir.akm0 <- Inf
             cil.akm0 <- -Inf
+            se.akm0 <- Inf
         }
     }
 
-    se <- c(se.h, se.r, se.s, se.akm)
-    p <- 2*(1-stats::pnorm(abs(betahat-beta0)/c(se, se.akm0)))
-    ci.l <- c(betahat-cv*se, cil.akm0)
-    ci.r <- c(betahat+cv*se, cir.akm0)
-    se.akm0 <- if (is.na(ci.l[5]) | ci.r[5]>ci.l[5])
-                   (ci.r[5]-ci.l[5]) / (2*cv)
-               else
-                   Inf
-    se <- c(se, se.akm0)
+    se <- c(se.h, se.r, se.s, se.akm, se.akm0)
+    p <- 2*(1-stats::pnorm(abs(betahat-beta0)/c(se[-5], se0.akm0)))
+    ci.l <- c(betahat-cv*se[-5], cil.akm0)
+    ci.r <- c(betahat+cv*se[-5], cir.akm0)
+
     names(se) <- names(ci.l) <- names(ci.r) <- names(p) <-
         c("Homoscedastic", "EHW", "Reg. cluster", "AKM", "AKM0")
 

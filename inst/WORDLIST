@@ -3,7 +3,6 @@ AKM
 Autor
 Bartik
 coercible
-dfadjust
 doi
 Dorn
 Dorn's
@@ -16,3 +15,8 @@ qjz
 sectoral
 shifters
 ShiftShareSEMatlab
+ShiftShareSEStata
+collinear
+estimand
+partialled
+Stata
